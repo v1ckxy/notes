@@ -17,8 +17,7 @@ class TagTreeDelegateEditor : public QWidget
 {
     Q_OBJECT
 public:
-    explicit TagTreeDelegateEditor(QTreeView *view, const QStyleOptionViewItem &option,
-                                   const QModelIndex &index, QListView *listView,
+    explicit TagTreeDelegateEditor(QTreeView *view, const QStyleOptionViewItem &option, const QModelIndex &index, QListView *listView,
                                    QWidget *parent = nullptr);
     void setTheme(Theme::Value theme);
 
@@ -40,8 +39,8 @@ private:
 
     // QWidget interface
 protected:
-    virtual void paintEvent(QPaintEvent *event) override;
-    virtual void mouseDoubleClickEvent(QMouseEvent *event) override;
+    void paintEvent(QPaintEvent *event) override;
+    void mouseDoubleClickEvent(QMouseEvent *event) override;
 };
 
 #endif // TAGTREEDELEGATEEDITOR_H

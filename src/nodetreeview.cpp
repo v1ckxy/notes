@@ -11,11 +11,7 @@
 #include "nodetreeview_p.h"
 
 NodeTreeView::NodeTreeView(QWidget *parent)
-    : QTreeView(parent),
-      m_isContextMenuOpened{ false },
-      m_isEditing{ false },
-      m_ignoreThisCurrentLoad{ false },
-      m_isLastSelectedFolder{ false }
+    : QTreeView(parent), m_isContextMenuOpened{ false }, m_isEditing{ false }, m_ignoreThisCurrentLoad{ false }, m_isLastSelectedFolder{ false }
 {
     setHeaderHidden(true);
 
@@ -35,45 +31,45 @@ NodeTreeView::NodeTreeView(QWidget *parent)
     setSelectionMode(QAbstractItemView::MultiSelection);
     setContextMenuPolicy(Qt::CustomContextMenu);
     connect(this, &QWidget::customContextMenuRequested, this, &NodeTreeView::onCustomContextMenu);
-    contextMenu = new QMenu(this);
-    renameFolderAction = new QAction(tr("Rename Folder"), this);
-    connect(renameFolderAction, &QAction::triggered, this, [this] {
+    m_contextMenu = new QMenu(this);
+    m_renameFolderAction = new QAction(tr("Rename Folder"), this);
+    connect(m_renameFolderAction, &QAction::triggered, this, [this] {
         setIsEditing(true);
         emit renameFolderRequested();
     });
-    deleteFolderAction = new QAction(tr("Delete Folder"), this);
-    connect(deleteFolderAction, &QAction::triggered, this, &NodeTreeView::onDeleteNodeAction);
-    addSubfolderAction = new QAction(tr("Add Subfolder"), this);
-    connect(addSubfolderAction, &QAction::triggered, this, &NodeTreeView::addFolderRequested);
+    m_deleteFolderAction = new QAction(tr("Delete Folder"), this);
+    connect(m_deleteFolderAction, &QAction::triggered, this, &NodeTreeView::onDeleteNodeAction);
+    m_addSubfolderAction = new QAction(tr("Add Subfolder"), this);
+    connect(m_addSubfolderAction, &QAction::triggered, this, &NodeTreeView::addFolderRequested);
 
-    renameTagAction = new QAction(tr("Rename Tag"), this);
-    connect(renameTagAction, &QAction::triggered, this, [this] {
+    m_renameTagAction = new QAction(tr("Rename Tag"), this);
+    connect(m_renameTagAction, &QAction::triggered, this, [this] {
         setIsEditing(true);
         emit renameTagRequested();
     });
-    changeTagColorAction = new QAction(tr("Change Tag Color"), this);
-    connect(changeTagColorAction, &QAction::triggered, this, &NodeTreeView::onChangeTagColorAction);
-    deleteTagAction = new QAction(tr("Delete Tag"), this);
-    connect(deleteTagAction, &QAction::triggered, this, &NodeTreeView::onDeleteNodeAction);
-    clearSelectionAction = new QAction(tr("Clear Selection"), this);
-    connect(clearSelectionAction, &QAction::triggered, this, [this] {
+    m_changeTagColorAction = new QAction(tr("Change Tag Color"), this);
+    connect(m_changeTagColorAction, &QAction::triggered, this, &NodeTreeView::onChangeTagColorAction);
+    m_deleteTagAction = new QAction(tr("Delete Tag"), this);
+    connect(m_deleteTagAction, &QAction::triggered, this, &NodeTreeView::onDeleteNodeAction);
+    m_clearSelectionAction = new QAction(tr("Clear Selection"), this);
+    connect(m_clearSelectionAction, &QAction::triggered, this, [this] {
         closeCurrentEditor();
         clearSelection();
-        setCurrentIndexC(dynamic_cast<NodeTreeModel *>(model())->getAllNotesButtonIndex());
+        setCurrentIndexC(static_cast<NodeTreeModel *>(model())->getAllNotesButtonIndex());
     });
 
-    contextMenuTimer.setInterval(100);
-    contextMenuTimer.setSingleShot(true);
-    connect(&contextMenuTimer, &QTimer::timeout, this, [this] {
+    m_contextMenuTimer.setInterval(100);
+    m_contextMenuTimer.setSingleShot(true);
+    connect(&m_contextMenuTimer, &QTimer::timeout, this, [this] {
         if (!m_isEditing) {
             closeCurrentEditor();
         }
     });
 
-    connect(contextMenu, &QMenu::aboutToHide, this, [this] {
+    connect(m_contextMenu, &QMenu::aboutToHide, this, [this] {
         m_isContextMenuOpened = false;
         // this signal is emitted before QAction::triggered
-        contextMenuTimer.start();
+        m_contextMenuTimer.start();
     });
     connect(this, &NodeTreeView::expanded, this, &NodeTreeView::onExpanded);
     connect(this, &NodeTreeView::collapsed, this, &NodeTreeView::onCollapsed);
@@ -85,11 +81,10 @@ NodeTreeView::NodeTreeView(QWidget *parent)
 
 void NodeTreeView::onDeleteNodeAction()
 {
-    auto itemType = static_cast<NodeItem::Type>(
-            m_currentEditingIndex.data(NodeItem::Roles::ItemType).toInt());
+    auto itemType = static_cast<NodeItem::Type>(m_currentEditingIndex.data(NodeItem::Roles::ItemType).toInt());
     auto id = m_currentEditingIndex.data(NodeItem::Roles::NodeId).toInt();
     if (itemType == NodeItem::Type::FolderItem || itemType == NodeItem::Type::NoteItem) {
-        if (id > SpecialNodeID::DefaultNotesFolder) {
+        if (id > DEFAULT_NOTES_FOLDER_ID) {
             auto index = m_currentEditingIndex;
             emit deleteNodeRequested(index);
         }
@@ -123,23 +118,23 @@ void NodeTreeView::setIgnoreThisCurrentLoad(bool newIgnoreThisCurrentLoad)
 
 void NodeTreeView::onFolderDropSuccessful(const QString &path)
 {
-    auto m_model = dynamic_cast<NodeTreeModel *>(model());
-    auto index = m_model->folderIndexFromIdPath(path);
+    auto *nodeTreeModel = static_cast<NodeTreeModel *>(model());
+    auto index = nodeTreeModel->folderIndexFromIdPath(path);
     if (index.isValid()) {
         setCurrentIndexC(index);
     } else {
-        setCurrentIndexC(m_model->getAllNotesButtonIndex());
+        setCurrentIndexC(nodeTreeModel->getAllNotesButtonIndex());
     }
 }
 
 void NodeTreeView::onTagsDropSuccessful(const QSet<int> &ids)
 {
-    auto m_model = dynamic_cast<NodeTreeModel *>(model());
+    auto *nodeTreeModel = static_cast<NodeTreeModel *>(model());
     setCurrentIndex(QModelIndex());
     clearSelection();
     setSelectionMode(QAbstractItemView::MultiSelection);
     for (const auto &id : std::as_const(ids)) {
-        auto index = m_model->tagIndexFromId(id);
+        auto index = nodeTreeModel->tagIndexFromId(id);
         if (index.isValid()) {
             setCurrentIndex(index);
             setSelectionMode(QAbstractItemView::MultiSelection);
@@ -148,7 +143,7 @@ void NodeTreeView::onTagsDropSuccessful(const QSet<int> &ids)
     }
 
     if (selectionModel()->selectedIndexes().isEmpty()) {
-        setCurrentIndexC(m_model->getAllNotesButtonIndex());
+        setCurrentIndexC(nodeTreeModel->getAllNotesButtonIndex());
     }
 }
 
@@ -165,11 +160,10 @@ bool NodeTreeView::isDragging() const
 void NodeTreeView::reExpandC()
 {
     auto needExpand = std::move(m_expanded);
-    m_expanded.clear();
     QTreeView::reset();
     for (const auto &path : needExpand) {
-        auto m_model = dynamic_cast<NodeTreeModel *>(model());
-        auto index = m_model->folderIndexFromIdPath(path);
+        auto *m = static_cast<NodeTreeModel *>(model());
+        auto index = m->folderIndexFromIdPath(path);
         if (index.isValid()) {
             expand(index);
         }
@@ -178,15 +172,13 @@ void NodeTreeView::reExpandC()
 
 void NodeTreeView::reExpandC(const QStringList &expanded)
 {
-    m_expanded.clear();
     m_expanded = expanded.toVector();
     reExpandC();
 }
 
 void NodeTreeView::onChangeTagColorAction()
 {
-    auto itemType = static_cast<NodeItem::Type>(
-            m_currentEditingIndex.data(NodeItem::Roles::ItemType).toInt());
+    auto itemType = static_cast<NodeItem::Type>(m_currentEditingIndex.data(NodeItem::Roles::ItemType).toInt());
     if (itemType == NodeItem::Type::TagItem) {
         auto index = m_currentEditingIndex;
         emit changeTagColorRequested(index);
@@ -195,8 +187,8 @@ void NodeTreeView::onChangeTagColorAction()
 
 void NodeTreeView::onRequestExpand(const QString &folderPath)
 {
-    auto m_model = dynamic_cast<NodeTreeModel *>(model());
-    expand(m_model->folderIndexFromIdPath(folderPath));
+    auto *nodeTreeModel = static_cast<NodeTreeModel *>(model());
+    expand(nodeTreeModel->folderIndexFromIdPath(folderPath));
 }
 
 void NodeTreeView::onUpdateAbsPath(const QString &oldPath, const QString &newPath)
@@ -212,8 +204,7 @@ void NodeTreeView::updateEditingIndex(QPoint pos)
     auto index = indexAt(pos);
     if (indexAt(pos) != m_currentEditingIndex && !m_isContextMenuOpened && !m_isEditing) {
         auto itemType = static_cast<NodeItem::Type>(index.data(NodeItem::Roles::ItemType).toInt());
-        if (itemType == NodeItem::Type::FolderItem || itemType == NodeItem::Type::TagItem
-            || itemType == NodeItem::Type::TrashButton
+        if (itemType == NodeItem::Type::FolderItem || itemType == NodeItem::Type::TagItem || itemType == NodeItem::Type::TrashButton
             || itemType == NodeItem::Type::AllNoteButton) {
             closePersistentEditor(m_currentEditingIndex);
             openPersistentEditor(index);
@@ -230,8 +221,7 @@ void NodeTreeView::closeCurrentEditor()
     m_currentEditingIndex = QModelIndex();
 }
 
-void NodeTreeView::selectionChanged(const QItemSelection &selected,
-                                    const QItemSelection &deselected)
+void NodeTreeView::selectionChanged(const QItemSelection &selected, const QItemSelection &deselected)
 {
     QTreeView::selectionChanged(selected, deselected);
     if (m_ignoreThisCurrentLoad) {
@@ -252,7 +242,7 @@ void NodeTreeView::selectionChanged(const QItemSelection &selected,
             auto folderPath = index.data(NodeItem::Roles::AbsPath).toString();
             m_lastSelectFolder = folderPath;
             m_isLastSelectedFolder = true;
-            emit loadNotesInFolderRequested(SpecialNodeID::RootFolder, true);
+            emit loadNotesInFolderRequested(ROOT_FOLDER_ID, true);
             emit saveSelected(true, NodePath::getAllNoteFolderPath(), {});
             return;
         }
@@ -260,7 +250,7 @@ void NodeTreeView::selectionChanged(const QItemSelection &selected,
             auto folderPath = index.data(NodeItem::Roles::AbsPath).toString();
             m_lastSelectFolder = folderPath;
             m_isLastSelectedFolder = true;
-            emit loadNotesInFolderRequested(SpecialNodeID::TrashFolder, true);
+            emit loadNotesInFolderRequested(TRASH_FOLDER_ID, true);
             emit saveSelected(true, NodePath::getTrashFolderPath(), {});
             return;
         }
@@ -327,10 +317,8 @@ void NodeTreeView::dragMoveEvent(QDragMoveEvent *event)
                 return;
             }
         } else if (event->mimeData()->hasFormat(FOLDER_MIME)) {
-            auto trashRect =
-                    visualRect(dynamic_cast<NodeTreeModel *>(model())->getTrashButtonIndex());
-            if (event->position().toPoint().y() > (trashRect.y() + 5)
-                && event->position().toPoint().y() < (trashRect.bottom() - 5)) {
+            auto trashRect = visualRect(static_cast<NodeTreeModel *>(model())->getTrashButtonIndex());
+            if (event->position().toPoint().y() > (trashRect.y() + 5) && event->position().toPoint().y() < (trashRect.bottom() - 5)) {
                 setDropIndicatorShown(true);
                 QTreeView::dragMoveEvent(event);
                 return;
@@ -360,11 +348,9 @@ void NodeTreeView::dropEvent(QDropEvent *event)
     if (event->mimeData()->hasFormat(NOTE_MIME)) {
         auto dropIndex = indexAt(event->position().toPoint());
         if (dropIndex.isValid()) {
-            auto itemType =
-                    static_cast<NodeItem::Type>(dropIndex.data(NodeItem::Roles::ItemType).toInt());
+            auto itemType = static_cast<NodeItem::Type>(dropIndex.data(NodeItem::Roles::ItemType).toInt());
             bool ok = false;
-            auto idl = QString::fromUtf8(event->mimeData()->data(NOTE_MIME))
-                               .split(QStringLiteral(PATH_SEPARATOR));
+            auto idl = QString::fromUtf8(event->mimeData()->data(NOTE_MIME)).split(PATH_SEPARATOR);
             for (const auto &s : std::as_const(idl)) {
                 auto nodeId = s.toInt(&ok);
                 if (ok) {
@@ -374,7 +360,7 @@ void NodeTreeView::dropEvent(QDropEvent *event)
                     } else if (itemType == NodeItem::Type::TagItem) {
                         emit addNoteToTag(nodeId, dropIndex.data(NodeItem::NodeId).toInt());
                     } else if (itemType == NodeItem::Type::TrashButton) {
-                        emit moveNodeRequested(nodeId, SpecialNodeID::TrashFolder);
+                        emit moveNodeRequested(nodeId, TRASH_FOLDER_ID);
                         event->acceptProposedAction();
                     }
                 }
@@ -393,8 +379,7 @@ void NodeTreeView::setIsEditing(bool newIsEditing)
 void NodeTreeView::onRenameFolderFinished(const QString &newName)
 {
     if (m_currentEditingIndex.isValid()) {
-        auto itemType = static_cast<NodeItem::Type>(
-                m_currentEditingIndex.data(NodeItem::Roles::ItemType).toInt());
+        auto itemType = static_cast<NodeItem::Type>(m_currentEditingIndex.data(NodeItem::Roles::ItemType).toInt());
         if (itemType == NodeItem::Type::FolderItem) {
             QModelIndex index = m_currentEditingIndex;
             closeCurrentEditor();
@@ -410,8 +395,7 @@ void NodeTreeView::onRenameFolderFinished(const QString &newName)
 void NodeTreeView::onRenameTagFinished(const QString &newName)
 {
     if (m_currentEditingIndex.isValid()) {
-        auto itemType = static_cast<NodeItem::Type>(
-                m_currentEditingIndex.data(NodeItem::Roles::ItemType).toInt());
+        auto itemType = static_cast<NodeItem::Type>(m_currentEditingIndex.data(NodeItem::Roles::ItemType).toInt());
         if (itemType == NodeItem::Type::TagItem) {
             QModelIndex index = m_currentEditingIndex;
             closeCurrentEditor();
@@ -448,31 +432,30 @@ void NodeTreeView::onCustomContextMenu(QPoint point)
     QModelIndex index = indexAt(point);
     if (index.isValid()) {
         auto itemType = static_cast<NodeItem::Type>(index.data(NodeItem::Roles::ItemType).toInt());
-        contextMenu->clear();
+        m_contextMenu->clear();
         if (itemType == NodeItem::Type::FolderItem) {
             auto id = index.data(NodeItem::Roles::NodeId).toInt();
-            if (id != SpecialNodeID::DefaultNotesFolder) {
+            if (id != DEFAULT_NOTES_FOLDER_ID) {
                 m_isContextMenuOpened = true;
-                contextMenu->addAction(renameFolderAction);
-                contextMenu->addAction(deleteFolderAction);
-                contextMenu->addSeparator();
-                contextMenu->addAction(addSubfolderAction);
-                contextMenu->exec(viewport()->mapToGlobal(point));
+                m_contextMenu->addAction(m_renameFolderAction);
+                m_contextMenu->addAction(m_deleteFolderAction);
+                m_contextMenu->addSeparator();
+                m_contextMenu->addAction(m_addSubfolderAction);
+                m_contextMenu->exec(viewport()->mapToGlobal(point));
             }
         } else if (itemType == NodeItem::Type::TagItem) {
             m_isContextMenuOpened = true;
-            contextMenu->addAction(renameTagAction);
-            contextMenu->addAction(changeTagColorAction);
-            contextMenu->addAction(clearSelectionAction);
-            contextMenu->addSeparator();
-            contextMenu->addAction(deleteTagAction);
-            contextMenu->exec(viewport()->mapToGlobal(point));
+            m_contextMenu->addAction(m_renameTagAction);
+            m_contextMenu->addAction(m_changeTagColorAction);
+            m_contextMenu->addAction(m_clearSelectionAction);
+            m_contextMenu->addSeparator();
+            m_contextMenu->addAction(m_deleteTagAction);
+            m_contextMenu->exec(viewport()->mapToGlobal(point));
         }
     }
 }
 
-void NodeTreeView::setTreeSeparator(const QVector<QModelIndex> &newTreeSeparator,
-                                    const QModelIndex &defaultNotesIndex)
+void NodeTreeView::setTreeSeparator(const QVector<QModelIndex> &newTreeSeparator, const QModelIndex &defaultNotesIndex)
 {
     for (const auto &sep : std::as_const(m_treeSeparator)) {
         closePersistentEditor(sep);
@@ -504,8 +487,7 @@ void NodeTreeView::mouseMoveEvent(QMouseEvent *event)
         }
         return;
     }
-    if (d->pressedIndex.isValid() && (state() != DragSelectingState)
-        && (event->buttons() != Qt::NoButton)) {
+    if (d->pressedIndex.isValid() && (state() != DragSelectingState) && (event->buttons() != Qt::NoButton)) {
         setState(DraggingState);
         return;
     }
@@ -518,12 +500,11 @@ void NodeTreeView::mousePressEvent(QMouseEvent *event)
     {
         auto index = indexAt(event->position().toPoint());
         if (index.isValid()) {
-            auto itemType =
-                    static_cast<NodeItem::Type>(index.data(NodeItem::Roles::ItemType).toInt());
+            auto itemType = static_cast<NodeItem::Type>(index.data(NodeItem::Roles::ItemType).toInt());
             switch (itemType) {
             case NodeItem::Type::FolderItem: {
                 auto rect = visualRect(index);
-                auto iconRect = QRect(rect.x() + 5, rect.y() + (rect.height() - 20) / 2, 20, 20);
+                auto iconRect = QRect(rect.x() + 5, rect.y() + ((rect.height() - 20) / 2), 20, 20);
                 if (iconRect.contains(event->position().toPoint())) {
                     if (isExpanded(index)) {
                         collapse(index);
@@ -538,8 +519,7 @@ void NodeTreeView::mousePressEvent(QMouseEvent *event)
             case NodeItem::Type::TagItem: {
                 auto oldIndexes = selectionModel()->selectedIndexes();
                 for (const auto &ix : std::as_const(oldIndexes)) {
-                    auto selectedItemType =
-                            static_cast<NodeItem::Type>(ix.data(NodeItem::Roles::ItemType).toInt());
+                    auto selectedItemType = static_cast<NodeItem::Type>(ix.data(NodeItem::Roles::ItemType).toInt());
                     if (selectedItemType != NodeItem::Type::TagItem) {
                         setCurrentIndex(QModelIndex());
                         clearSelection();
@@ -593,17 +573,15 @@ void NodeTreeView::mouseReleaseEvent(QMouseEvent *event)
         selectionModel()->select(m_needReleaseIndex, QItemSelectionModel::Deselect);
         if (selectionModel()->selectedIndexes().isEmpty()) {
             if (!m_isLastSelectedFolder) {
-                auto index = dynamic_cast<NodeTreeModel *>(model())->folderIndexFromIdPath(
-                        m_lastSelectFolder);
+                auto index = static_cast<NodeTreeModel *>(model())->folderIndexFromIdPath(m_lastSelectFolder);
                 if (index.isValid()) {
                     emit requestLoadLastSelectedNote();
                     setCurrentIndexC(index);
                 } else {
-                    setCurrentIndexC(
-                            dynamic_cast<NodeTreeModel *>(model())->getAllNotesButtonIndex());
+                    setCurrentIndexC(static_cast<NodeTreeModel *>(model())->getAllNotesButtonIndex());
                 }
             } else {
-                setCurrentIndexC(dynamic_cast<NodeTreeModel *>(model())->getAllNotesButtonIndex());
+                setCurrentIndexC(static_cast<NodeTreeModel *>(model())->getAllNotesButtonIndex());
             }
         }
     }

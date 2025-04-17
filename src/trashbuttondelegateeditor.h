@@ -14,8 +14,7 @@ class TrashButtonDelegateEditor : public QWidget
 {
     Q_OBJECT
 public:
-    explicit TrashButtonDelegateEditor(QTreeView *view, const QStyleOptionViewItem &option,
-                                       const QModelIndex &index, QListView *listView,
+    explicit TrashButtonDelegateEditor(QTreeView *view, const QStyleOptionViewItem &option, const QModelIndex &index, QListView *listView,
                                        QWidget *parent = nullptr);
     void setTheme(Theme::Value theme);
 
@@ -37,7 +36,7 @@ private:
     Theme::Value m_theme;
     // QWidget interface
 protected:
-    virtual void paintEvent(QPaintEvent *event) override;
+    void paintEvent(QPaintEvent *event) override;
 };
 
 #endif // TRASHBUTTONDELEGATEEDITOR_H

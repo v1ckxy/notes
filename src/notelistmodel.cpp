@@ -4,9 +4,7 @@
 #include <QTimer>
 #include <QMimeData>
 
-NoteListModel::NoteListModel(QObject *parent) : QAbstractListModel(parent) { }
-
-NoteListModel::~NoteListModel() { }
+NoteListModel::NoteListModel(QObject *parent) : QAbstractListModel(parent), m_listViewInfo() { }
 
 QModelIndex NoteListModel::addNote(const NodeData &note)
 {
@@ -18,15 +16,14 @@ QModelIndex NoteListModel::addNote(const NodeData &note)
         emit rowsInsertedC({ createIndex(rowCnt, 0) });
         emit rowCountChanged();
         return createIndex(rowCnt, 0);
-    } else {
-        const int rowCnt = m_pinnedList.size();
-        beginInsertRows(QModelIndex(), rowCnt, rowCnt);
-        m_pinnedList << note;
-        endInsertRows();
-        emit rowsInsertedC({ createIndex(rowCnt, 0) });
-        emit rowCountChanged();
-        return createIndex(rowCnt, 0);
     }
+    const int rowCnt = m_pinnedList.size();
+    beginInsertRows(QModelIndex(), rowCnt, rowCnt);
+    m_pinnedList << note;
+    endInsertRows();
+    emit rowsInsertedC({ createIndex(rowCnt, 0) });
+    emit rowCountChanged();
+    return createIndex(rowCnt, 0);
 }
 
 QModelIndex NoteListModel::insertNote(const NodeData &note, int row)
@@ -43,19 +40,18 @@ QModelIndex NoteListModel::insertNote(const NodeData &note, int row)
         emit rowsInsertedC({ createIndex(row, 0) });
         emit rowCountChanged();
         return createIndex(row, 0);
-    } else {
-        if (row < m_pinnedList.size()) {
-            row = m_pinnedList.size();
-        } else if (row > (m_pinnedList.size() + m_noteList.size())) {
-            row = m_pinnedList.size() + m_noteList.size();
-        }
-        beginInsertRows(QModelIndex(), row, row);
-        m_noteList.insert(row - m_pinnedList.size(), note);
-        endInsertRows();
-        emit rowsInsertedC({ createIndex(row, 0) });
-        emit rowCountChanged();
-        return createIndex(row, 0);
     }
+    if (row < m_pinnedList.size()) {
+        row = m_pinnedList.size();
+    } else if (row > (m_pinnedList.size() + m_noteList.size())) {
+        row = m_pinnedList.size() + m_noteList.size();
+    }
+    beginInsertRows(QModelIndex(), row, row);
+    m_noteList.insert(row - m_pinnedList.size(), note);
+    endInsertRows();
+    emit rowsInsertedC({ createIndex(row, 0) });
+    emit rowCountChanged();
+    return createIndex(row, 0);
 }
 
 const NodeData &NoteListModel::getNote(const QModelIndex &index) const
@@ -63,10 +59,9 @@ const NodeData &NoteListModel::getNote(const QModelIndex &index) const
     auto row = index.row();
     if (row < m_pinnedList.size()) {
         return m_pinnedList.at(row);
-    } else {
-        row = row - m_pinnedList.size();
-        return m_noteList.at(row);
     }
+    row = row - m_pinnedList.size();
+    return m_noteList.at(row);
 }
 
 QModelIndex NoteListModel::getNoteIndex(int id) const
@@ -91,8 +86,7 @@ void NoteListModel::setListNote(const QVector<NodeData> &notes, const ListViewIn
     m_pinnedList.clear();
     m_noteList.clear();
     m_listViewInfo = inf;
-    if ((!m_listViewInfo.isInTag)
-        && (m_listViewInfo.parentFolderId != SpecialNodeID::TrashFolder)) {
+    if ((!m_listViewInfo.isInTag) && (m_listViewInfo.parentFolderId != TRASH_FOLDER_ID)) {
         for (const auto &note : std::as_const(notes)) {
             if (note.isPinnedNote()) {
                 m_pinnedList.append(note);
@@ -113,16 +107,13 @@ void NoteListModel::removeNotes(const QModelIndexList &noteIndexes)
     emit requestRemoveNotes(noteIndexes);
 }
 
-bool NoteListModel::moveRow(const QModelIndex &sourceParent, int sourceRow,
-                            const QModelIndex &destinationParent, int destinationChild)
+bool NoteListModel::moveRow(const QModelIndex &sourceParent, int sourceRow, const QModelIndex &destinationParent, int destinationChild)
 {
-    if (sourceRow < 0 || sourceRow >= rowCount() || destinationChild < 0
-        || destinationChild >= rowCount()) {
+    if (sourceRow < 0 || sourceRow >= rowCount() || destinationChild < 0 || destinationChild >= rowCount()) {
         return false;
     }
     if (sourceRow < m_pinnedList.size() && destinationChild < m_pinnedList.size()) {
-        if (beginMoveRows(sourceParent, sourceRow, sourceRow, destinationParent,
-                          destinationChild)) {
+        if (beginMoveRows(sourceParent, sourceRow, sourceRow, destinationParent, destinationChild)) {
             m_pinnedList.move(sourceRow, destinationChild);
             endMoveRows();
             emit rowsAboutToBeMovedC({ createIndex(sourceRow, 0) });
@@ -134,8 +125,7 @@ bool NoteListModel::moveRow(const QModelIndex &sourceParent, int sourceRow,
     if (sourceRow >= m_pinnedList.size() && destinationChild >= m_pinnedList.size()) {
         sourceRow = sourceRow - m_pinnedList.size();
         destinationChild = destinationChild - m_pinnedList.size();
-        if (beginMoveRows(sourceParent, sourceRow, sourceRow, destinationParent,
-                          destinationChild)) {
+        if (beginMoveRows(sourceParent, sourceRow, sourceRow, destinationParent, destinationChild)) {
             m_noteList.move(sourceRow, destinationChild);
             endMoveRows();
             emit rowsAboutToBeMovedC({ createIndex(sourceRow, 0) });
@@ -159,44 +149,47 @@ void NoteListModel::clearNotes()
 QVariant NoteListModel::data(const QModelIndex &index, int role) const
 {
     if (index.row() < 0 || index.row() >= (m_noteList.count() + m_pinnedList.count())) {
-        return QVariant();
+        return {};
     }
     if (role < NoteID || role > NoteIsPinned) {
-        return QVariant();
+        return {};
     }
     const NodeData &note = getRef(index.row());
-    if (role == NoteID) {
+
+    switch (role) {
+    case NoteID:
         return note.id();
-    } else if (role == NoteFullTitle) {
+    case NoteFullTitle: {
         auto text = note.fullTitle().trimmed();
         if (text.startsWith("#")) {
             text.remove(0, 1);
             text = text.trimmed();
         }
         return text;
-    } else if (role == NoteCreationDateTime) {
+    }
+    case NoteCreationDateTime:
         return note.creationDateTime();
-    } else if (role == NoteLastModificationDateTime) {
+    case NoteLastModificationDateTime:
         return note.lastModificationdateTime();
-    } else if (role == NoteDeletionDateTime) {
+    case NoteDeletionDateTime:
         return note.deletionDateTime();
-    } else if (role == NoteContent) {
+    case NoteContent:
         return note.content();
-    } else if (role == NoteScrollbarPos) {
+    case NoteScrollbarPos:
         return note.scrollBarPosition();
-    } else if (role == NoteTagsList) {
+    case NoteTagsList:
         return QVariant::fromValue(note.tagIds());
-    } else if (role == NoteIsTemp) {
+    case NoteIsTemp:
         return note.isTempNote();
-    } else if (role == NoteParentName) {
+    case NoteParentName:
         return note.parentName();
-    } else if (role == NoteTagListScrollbarPos) {
+    case NoteTagListScrollbarPos:
         return note.tagListScrollBarPos();
-    } else if (role == NoteIsPinned) {
+    case NoteIsPinned:
         return note.isPinnedNote();
     }
 
-    return QVariant();
+    return {};
 }
 
 bool NoteListModel::setData(const QModelIndex &index, const QVariant &value, int role)
@@ -242,8 +235,7 @@ Qt::ItemFlags NoteListModel::flags(const QModelIndex &index) const
         return Qt::ItemIsEnabled | Qt::ItemIsDropEnabled;
     }
 
-    return QAbstractListModel::flags(index) | Qt::ItemIsEditable | Qt::ItemIsDragEnabled
-            | Qt::ItemIsDropEnabled;
+    return QAbstractListModel::flags(index) | Qt::ItemIsEditable | Qt::ItemIsDragEnabled | Qt::ItemIsDropEnabled;
 }
 
 int NoteListModel::rowCount(const QModelIndex &parent) const
@@ -256,25 +248,19 @@ void NoteListModel::sort(int column, Qt::SortOrder order)
 {
     Q_UNUSED(column)
     Q_UNUSED(order)
-    if (m_listViewInfo.parentFolderId == SpecialNodeID::TrashFolder) {
+    if (m_listViewInfo.parentFolderId == TRASH_FOLDER_ID) {
         std::stable_sort(m_noteList.begin(), m_noteList.end(),
-                         [](const NodeData &lhs, const NodeData &rhs) {
-                             return lhs.deletionDateTime() > rhs.deletionDateTime();
-                         });
+                         [](const NodeData &lhs, const NodeData &rhs) { return lhs.deletionDateTime() > rhs.deletionDateTime(); });
     } else {
-        std::stable_sort(m_pinnedList.begin(), m_pinnedList.end(),
-                         [this](const NodeData &lhs, const NodeData &rhs) {
-                             if (isInAllNote()) {
-                                 return lhs.relativePosAN() < rhs.relativePosAN();
-                             } else {
-                                 return lhs.relativePosition() < rhs.relativePosition();
-                             }
-                         });
+        std::stable_sort(m_pinnedList.begin(), m_pinnedList.end(), [this](const NodeData &lhs, const NodeData &rhs) {
+            if (isInAllNote()) {
+                return lhs.relativePosAN() < rhs.relativePosAN();
+            }
+            return lhs.relativePosition() < rhs.relativePosition();
+        });
 
         std::stable_sort(m_noteList.begin(), m_noteList.end(),
-                         [](const NodeData &lhs, const NodeData &rhs) {
-                             return lhs.lastModificationdateTime() > rhs.lastModificationdateTime();
-                         });
+                         [](const NodeData &lhs, const NodeData &rhs) { return lhs.lastModificationdateTime() > rhs.lastModificationdateTime(); });
     }
 
     emit dataChanged(index(0), index(rowCount() - 1));
@@ -308,8 +294,7 @@ void NoteListModel::updatePinnedRelativePosition()
 
 bool NoteListModel::isInAllNote() const
 {
-    return (!m_listViewInfo.isInTag)
-            && (m_listViewInfo.parentFolderId == SpecialNodeID::RootFolder);
+    return (!m_listViewInfo.isInTag) && (m_listViewInfo.parentFolderId == ROOT_FOLDER_ID);
 }
 
 NodeData &NoteListModel::getRef(int row)
@@ -373,17 +358,16 @@ QMimeData *NoteListModel::mimeData(const QModelIndexList &indexes) const
     if (d.isEmpty()) {
         return nullptr;
     }
-    QMimeData *mimeData = new QMimeData;
-    mimeData->setData(NOTE_MIME, d.join(QStringLiteral(PATH_SEPARATOR)).toUtf8());
+    auto *mimeData = new QMimeData;
+    mimeData->setData(NOTE_MIME, d.join(PATH_SEPARATOR).toUtf8());
     return mimeData;
 }
 
-bool NoteListModel::dropMimeData(const QMimeData *mime, Qt::DropAction action, int row, int column,
-                                 const QModelIndex &parent)
+bool NoteListModel::dropMimeData(const QMimeData *mime, Qt::DropAction action, int row, int column, const QModelIndex &parent)
 {
     Q_UNUSED(column);
 
-    if (!(mime->hasFormat(NOTE_MIME) && action == Qt::MoveAction)) {
+    if (!mime->hasFormat(NOTE_MIME) || action != Qt::MoveAction) {
         return false;
     }
     if (row == -1) {
@@ -395,17 +379,12 @@ bool NoteListModel::dropMimeData(const QMimeData *mime, Qt::DropAction action, i
             row = rowCount(parent);
         }
     }
-    bool toPinned = false;
-    if (row >= m_pinnedList.size()) {
-        toPinned = false;
-    } else {
-        toPinned = true;
-    }
-    auto idl = QString::fromUtf8(mime->data(NOTE_MIME)).split(QStringLiteral(PATH_SEPARATOR));
+    bool toPinned = row < m_pinnedList.size();
+    auto idl = QString::fromUtf8(mime->data(NOTE_MIME)).split(PATH_SEPARATOR);
     QSet<int> movedIds;
     QModelIndexList idxe;
-    for (const auto &id_s : std::as_const(idl)) {
-        auto nodeId = id_s.toInt();
+    for (const auto &idString : std::as_const(idl)) {
+        auto nodeId = idString.toInt();
         idxe.append(getNoteIndex(nodeId));
     }
     emit rowsAboutToBeMovedC(idxe);
@@ -419,8 +398,8 @@ bool NoteListModel::dropMimeData(const QMimeData *mime, Qt::DropAction action, i
                 m_pinnedList.prepend(m_noteList.takeAt(index.row() - m_pinnedList.size()));
             }
         }
-        for (const auto &id_s : std::as_const(idl)) {
-            auto nodeId = id_s.toInt();
+        for (const auto &idString : std::as_const(idl)) {
+            auto nodeId = idString.toInt();
             for (int i = 0; i < m_pinnedList.size(); ++i) {
                 if (m_pinnedList[i].id() == nodeId) {
                     m_pinnedList.move(i, row);
@@ -439,18 +418,16 @@ bool NoteListModel::dropMimeData(const QMimeData *mime, Qt::DropAction action, i
             note.setIsPinnedNote(false);
             emit requestUpdatePinned(note.id(), false);
             int destinationChild = 0;
-            if (m_listViewInfo.parentFolderId == SpecialNodeID::TrashFolder) {
+            if (m_listViewInfo.parentFolderId == TRASH_FOLDER_ID) {
                 auto lastMod = index.data(NoteDeletionDateTime).toDateTime();
-                for (destinationChild = 0; destinationChild < m_noteList.size();
-                     ++destinationChild) {
+                for (destinationChild = 0; destinationChild < m_noteList.size(); ++destinationChild) {
                     if (m_noteList[destinationChild].deletionDateTime() <= lastMod) {
                         break;
                     }
                 }
             } else {
                 auto lastMod = index.data(NoteLastModificationDateTime).toDateTime();
-                for (destinationChild = 0; destinationChild < m_noteList.size();
-                     ++destinationChild) {
+                for (destinationChild = 0; destinationChild < m_noteList.size(); ++destinationChild) {
                     if (m_noteList[destinationChild].deletionDateTime() <= lastMod) {
                         break;
                     }
@@ -479,15 +456,13 @@ QModelIndex NoteListModel::getFirstUnpinnedNote() const
 {
     if (!m_noteList.isEmpty()) {
         return createIndex(m_pinnedList.size(), 0);
-    } else {
-        return QModelIndex();
     }
+    return {};
 }
 
 bool NoteListModel::hasPinnedNote() const
 {
-    if ((!m_listViewInfo.isInTag)
-        && (m_listViewInfo.parentFolderId == SpecialNodeID::TrashFolder)) {
+    if ((!m_listViewInfo.isInTag) && (m_listViewInfo.parentFolderId == TRASH_FOLDER_ID)) {
         // Trash don't have pinned note
         return false;
     }
@@ -547,10 +522,9 @@ void NoteListModel::setNotesIsPinned(const QModelIndexList &indexes, bool isPinn
                 continue;
             }
             int destinationChild = 0;
-            if (m_listViewInfo.parentFolderId == SpecialNodeID::TrashFolder) {
+            if (m_listViewInfo.parentFolderId == TRASH_FOLDER_ID) {
                 auto lastMod = index.data(NoteDeletionDateTime).toDateTime();
-                for (destinationChild = 0; destinationChild < m_noteList.size();
-                     ++destinationChild) {
+                for (destinationChild = 0; destinationChild < m_noteList.size(); ++destinationChild) {
                     const auto &note = m_noteList[destinationChild];
                     if (note.deletionDateTime() <= lastMod) {
                         break;
@@ -558,8 +532,7 @@ void NoteListModel::setNotesIsPinned(const QModelIndexList &indexes, bool isPinn
                 }
             } else {
                 auto lastMod = index.data(NoteLastModificationDateTime).toDateTime();
-                for (destinationChild = 0; destinationChild < m_noteList.size();
-                     ++destinationChild) {
+                for (destinationChild = 0; destinationChild < m_noteList.size(); ++destinationChild) {
                     const auto &note = m_noteList[destinationChild];
                     if (note.lastModificationdateTime() <= lastMod) {
                         break;
@@ -609,10 +582,7 @@ bool NoteListModel::isFirstPinnedNote(const QModelIndex &index) const
         return false;
     }
     const NodeData &note = getRef(index.row());
-    if (index.row() == 0 && note.isPinnedNote()) {
-        return true;
-    }
-    return false;
+    return index.row() == 0 && note.isPinnedNote();
 }
 
 bool NoteListModel::isFirstUnpinnedNote(const QModelIndex &index) const
@@ -621,16 +591,13 @@ bool NoteListModel::isFirstUnpinnedNote(const QModelIndex &index) const
         return false;
     }
     const NodeData &note = getRef(index.row());
-    if ((index.row() - m_pinnedList.size()) == 0 && !note.isPinnedNote()) {
-        return true;
-    }
-    return false;
+    return (index.row() - m_pinnedList.size()) == 0 && !note.isPinnedNote();
 }
 
 QModelIndex NoteListModel::getFirstPinnedNote() const
 {
     if (m_pinnedList.isEmpty()) {
-        return QModelIndex();
+        return {};
     }
     return createIndex(0, 0);
 }

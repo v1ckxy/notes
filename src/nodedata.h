@@ -5,35 +5,33 @@
 #include <QDateTime>
 #include <QSet>
 
-namespace SpecialNodeID {
-enum Value {
-    InvalidNodeId = -1,
-    RootFolder = 0,
-    TrashFolder = 1,
-    DefaultNotesFolder = 2,
-};
-}
+namespace {
+auto constexpr INVALID_NODE_ID = -1;
+auto constexpr ROOT_FOLDER_ID = 0;
+auto constexpr TRASH_FOLDER_ID = 1;
+auto constexpr DEFAULT_NOTES_FOLDER_ID = 2;
+} // namespace
 
 class NodeData
 {
 public:
     explicit NodeData();
 
-    enum Type { Note = 0, Folder };
+    enum class Type : uint8_t { Note = 0, Folder };
 
     int id() const;
     void setId(int id);
 
-    QString fullTitle() const;
+    QString const &fullTitle() const;
     void setFullTitle(const QString &fullTitle);
 
-    QDateTime lastModificationdateTime() const;
+    QDateTime const &lastModificationdateTime() const;
     void setLastModificationDateTime(const QDateTime &lastModificationdateTime);
 
     QDateTime creationDateTime() const;
     void setCreationDateTime(const QDateTime &creationDateTime);
 
-    QString content() const;
+    QString const &content() const;
     void setContent(const QString &content);
 
     bool isModified() const;

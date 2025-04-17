@@ -52,10 +52,10 @@
 #include "nodetreeview.h"
 #include "editorsettingsoptions.h"
 
-L_DECLARE_ENUM(SubscriptionStatus, NoSubscription, Active, ActivationLimitReached, Expired, Invalid,
-               EnteredGracePeriod, GracePeriodOver, NoInternetConnection, UnknownError)
+L_DECLARE_ENUM(SubscriptionStatus, NoSubscription, Active, ActivationLimitReached, Expired, Invalid, EnteredGracePeriod, GracePeriodOver, NoInternetConnection,
+               UnknownError)
 
-namespace Ui {
+namespace Ui { // NOLINT(readability-identifier-naming)
 class MainWindow;
 }
 class TreeViewLogic;
@@ -82,28 +82,9 @@ class MainWindow : public MainWindowBase
 public:
     enum class ShadowType { Linear = 0, Radial };
 
-    enum class ShadowSide {
-        Left = 0,
-        Right,
-        Top,
-        Bottom,
-        TopLeft,
-        TopRight,
-        BottomLeft,
-        BottomRight
-    };
+    enum class ShadowSide { Left = 0, Right, Top, Bottom, TopLeft, TopRight, BottomLeft, BottomRight };
 
-    enum class StretchSide {
-        None = 0,
-        Left,
-        Right,
-        Top,
-        Bottom,
-        TopLeft,
-        TopRight,
-        BottomLeft,
-        BottomRight
-    };
+    enum class StretchSide { None = 0, Left, Right, Top, Bottom, TopLeft, TopRight, BottomLeft, BottomRight };
 
     Q_ENUM(ShadowType)
     Q_ENUM(ShadowSide)
@@ -115,11 +96,10 @@ public:
     void setMainWindowVisibility(bool state);
 
 public slots:
-    void saveLastSelectedFolderTags(bool isFolder, const QString &folderPath,
-                                    const QSet<int> &tagId);
+    void saveLastSelectedFolderTags(bool isFolder, const QString &folderPath, const QSet<int> &tagId);
     void saveExpandedFolder(const QStringList &folderPaths);
     void saveLastSelectedNote(const QSet<int> &notesId);
-    void changeEditorFontTypeFromStyleButtons(FontTypeface::Value fontType, int chosenFontIndex);
+    void changeEditorFontTypeFromStyleButtons(FontTypeface::Value fontTypeface, int chosenFontIndex);
     void changeEditorFontSizeFromStyleButtons(FontSizeAction::Value fontSizeAction);
     void changeEditorTextWidthFromStyleButtons(EditorTextWidth::Value editorTextWidth);
     void resetEditorSettings();
@@ -135,7 +115,7 @@ public slots:
     void toggleEditorSettings();
     void setEditorSettingsFromQuickViewVisibility(bool isVisible);
     void setEditorSettingsScrollBarPosition(double position);
-    void setActivationSuccessful(QString licenseKey, bool removeGracePeriodStartedDate = true);
+    void setActivationSuccessful(QString const &licenseKey, bool removeGracePeriodStartedDate = true);
     void checkProVersion();
     QVariant getUserLicenseKey();
 
@@ -148,12 +128,12 @@ protected:
     void moveEvent(QMoveEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
     void mouseDoubleClickEvent(QMouseEvent *event) override;
-    void leaveEvent(QEvent *) override;
+    void leaveEvent(QEvent * /*event*/) override;
     void changeEvent(QEvent *event) override;
     bool eventFilter(QObject *object, QEvent *event) override;
 
 private:
-    Ui::MainWindow *ui;
+    Ui::MainWindow *m_ui;
 
     QSettings *m_settingsDatabase;
     QToolButton *m_clearButton;
@@ -233,7 +213,7 @@ private:
     int m_chosenMonoFontIndex;
     int m_editorMediumFontSize;
     int m_currentFontPointSize;
-    struct m_charsLimitPerFont
+    struct CharsLimitPerFont
     {
         int mono;
         int serif;
@@ -262,7 +242,7 @@ private:
     QWindow *m_subscriptionWindow;
     QString m_purchaseDataAlt1;
     QString m_purchaseDataAlt2;
-    QByteArray *m_dataBuffer;
+    std::unique_ptr<QByteArray> m_dataBuffer;
     QNetworkAccessManager *m_netManager;
     QNetworkRequest m_reqAlt1;
     QNetworkRequest m_reqAlt2;
@@ -304,7 +284,7 @@ private:
     void resetFormat(const QString &formatChars);
     void restoreStates();
     void migrateFromV0_9_0();
-    void executeImport(const bool replace);
+    void executeImport(bool replace);
     void migrateNoteFromV0_9_0(const QString &notePath);
     void migrateTrashFromV0_9_0(const QString &trashPath);
     void setCurrentFontBasedOnTypeface(FontTypeface::Value selectedFontTypeFace);
@@ -315,7 +295,6 @@ private:
     void updateSelectedOptionsEditorSettings();
     void dropShadow(QPainter &painter, ShadowType type, ShadowSide side);
     void fillRectWithGradient(QPainter &painter, QRect rect, QGradient &gradient);
-    double gaussianDist(double x, const double center, double sigma) const;
     void resizeAndPositionEditorSettingsWindow();
     void getPaymentDetailsSignalsSlots();
     void verifyLicenseSignalsSlots();
@@ -324,7 +303,7 @@ private:
     void setMargins(QMargins margins);
 
 private slots:
-    void InitData();
+    void initData();
 
     void onSystemTrayIconActivated(QSystemTrayIcon::ActivationReason reason);
     void onNewNoteButtonClicked();
@@ -350,7 +329,7 @@ private slots:
     void makeStrikethrough();
     void maximizeWindow();
     void minimizeWindow();
-    void QuitApplication();
+    void quitApplication();
 #if defined(UPDATE_CHECKER)
     void checkForUpdates();
 #endif

@@ -1,7 +1,7 @@
-#ifndef NODETREEVIEW_P_H
-#define NODETREEVIEW_P_H
-#include <QtWidgets/private/qabstractitemview_p.h>
+#pragma once
 #include "nodetreeview.h"
+
+#include <QtWidgets/private/qabstractitemview_p.h>
 
 class NodeTreeViewPrivate : public QAbstractItemViewPrivate
 {
@@ -9,7 +9,5 @@ class NodeTreeViewPrivate : public QAbstractItemViewPrivate
 
 public:
     NodeTreeViewPrivate() : QAbstractItemViewPrivate(){};
-    virtual ~NodeTreeViewPrivate() { }
+    ~NodeTreeViewPrivate() override = default;
 };
-
-#endif // NODETREEVIEW_P_H

@@ -2,10 +2,13 @@
 #include <QDataStream>
 
 NodeData::NodeData()
-    : m_id{ SpecialNodeID::InvalidNodeId },
+    : m_id{ INVALID_NODE_ID },
       m_isModified(false),
       m_isSelected(false),
       m_scrollBarPosition(0),
+      m_nodeType(Type::Note),
+      m_parentId(INVALID_NODE_ID),
+      m_relativePosition(0),
       m_isTempNote{ false },
       m_isPinnedNote{ false },
       m_tagListScrollBarPos{ 0 },
@@ -24,7 +27,7 @@ void NodeData::setId(int id)
     m_id = id;
 }
 
-QString NodeData::fullTitle() const
+QString const &NodeData::fullTitle() const
 {
     return m_fullTitle;
 }
@@ -34,7 +37,7 @@ void NodeData::setFullTitle(const QString &fullTitle)
     m_fullTitle = fullTitle;
 }
 
-QDateTime NodeData::lastModificationdateTime() const
+QDateTime const &NodeData::lastModificationdateTime() const
 {
     return m_lastModificationDateTime;
 }
@@ -44,7 +47,7 @@ void NodeData::setLastModificationDateTime(const QDateTime &lastModificationdate
     m_lastModificationDateTime = lastModificationdateTime;
 }
 
-QString NodeData::content() const
+QString const &NodeData::content() const
 {
     return m_content;
 }
@@ -239,7 +242,7 @@ QDataStream &operator>>(QDataStream &stream, NodeData *&nodeData)
     QDateTime creationDateTime;
     QString content;
     stream >> id >> fullTitle >> creationDateTime >> lastModificationDateTime >> content;
-    nodeData->setId(SpecialNodeID::InvalidNodeId);
+    nodeData->setId(INVALID_NODE_ID);
     nodeData->setFullTitle(fullTitle);
     nodeData->setLastModificationDateTime(lastModificationDateTime);
     nodeData->setCreationDateTime(creationDateTime);

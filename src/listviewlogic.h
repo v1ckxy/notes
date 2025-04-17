@@ -20,9 +20,8 @@ class ListViewLogic : public QObject
 {
     Q_OBJECT
 public:
-    explicit ListViewLogic(NoteListView *noteView, NoteListModel *noteModel, QLineEdit *searchEdit,
-                           QToolButton *clearButton, TagPool *tagPool, DBManager *dbManager,
-                           QObject *parent = nullptr);
+    explicit ListViewLogic(NoteListView *noteView, NoteListModel *noteModel, QLineEdit *searchEdit, QToolButton *clearButton, TagPool *tagPool,
+                           DBManager *dbManager, QObject *parent = nullptr);
     void selectNote(const QModelIndex &noteIndex);
 
     const ListViewInfo &listViewInfo() const;
@@ -40,7 +39,7 @@ public slots:
     void selectNoteUp();
     void selectNoteDown();
     void onSearchEditTextChanged(const QString &keyword);
-    void clearSearch(bool createNewNote = false, int scrollToId = SpecialNodeID::InvalidNodeId);
+    void clearSearch(bool createNewNote = false, int scrollToId = INVALID_NODE_ID);
     void onAddTagRequestD(int noteId, int tagId);
     void onNoteMovedOut(int nodeId, int targetId);
     void setLastSelectedNote();

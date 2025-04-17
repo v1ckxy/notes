@@ -17,11 +17,10 @@
 #include "taglistmodel.h"
 #include "taglistdelegate.h"
 #include "fontloader.h"
+#include "utils.h"
 
-NoteListDelegateEditor::NoteListDelegateEditor(const NoteListDelegate *delegate, NoteListView *view,
-                                               const QStyleOptionViewItem &option,
-                                               const QModelIndex &index, TagPool *tagPool,
-                                               QWidget *parent)
+NoteListDelegateEditor::NoteListDelegateEditor(const NoteListDelegate *delegate, NoteListView *view, const QStyleOptionViewItem &option,
+                                               const QModelIndex &index, TagPool *tagPool, QWidget *parent)
     : QWidget(parent),
       m_delegate(delegate),
       m_option(option),
@@ -29,12 +28,9 @@ NoteListDelegateEditor::NoteListDelegateEditor(const NoteListDelegate *delegate,
       m_view(view),
       m_tagPool{ tagPool },
 #ifdef __APPLE__
-      m_displayFont(QFont(QStringLiteral("SF Pro Text")).exactMatch()
-                            ? QStringLiteral("SF Pro Text")
-                            : QStringLiteral("Roboto")),
+      m_displayFont(QFont(QStringLiteral("SF Pro Text")).exactMatch() ? QStringLiteral("SF Pro Text") : QStringLiteral("Roboto")),
 #elif _WIN32
-      m_displayFont(QFont(QStringLiteral("Segoe UI")).exactMatch() ? QStringLiteral("Segoe UI")
-                                                                   : QStringLiteral("Roboto")),
+      m_displayFont(QFont(QStringLiteral("Segoe UI")).exactMatch() ? QStringLiteral("Segoe UI") : QStringLiteral("Roboto")),
 #else
       m_displayFont(QStringLiteral("Roboto")),
 #endif
@@ -53,7 +49,7 @@ NoteListDelegateEditor::NoteListDelegateEditor(const NoteListDelegate *delegate,
       m_titleColor(26, 26, 26),
       m_dateColor(26, 26, 26),
       m_contentColor(142, 146, 150),
-      m_ActiveColor(218, 233, 239),
+      m_activeColor(218, 233, 239),
       m_notActiveColor(175, 212, 228),
       m_hoverColor(207, 207, 207),
       m_applicationInactiveColor(207, 207, 207),
@@ -77,22 +73,20 @@ NoteListDelegateEditor::NoteListDelegateEditor(const NoteListDelegate *delegate,
     m_tagListModel->setModelData(index.data(NoteListModel::NoteTagsList).value<QSet<int>>());
     if (m_delegate->isInAllNotes()) {
         int y = 90;
-        auto model = dynamic_cast<NoteListModel *>(m_view->model());
-        if (model) {
-            auto m_index = model->getNoteIndex(m_id);
-            if (model->hasPinnedNote()
-                && (model->isFirstPinnedNote(m_index) || model->isFirstUnpinnedNote(m_index))) {
+        auto const *noteListModel = static_cast<NoteListModel *>(m_view->model());
+        if (noteListModel != nullptr) {
+            auto idx = noteListModel->getNoteIndex(m_id);
+            if (noteListModel->hasPinnedNote() && (noteListModel->isFirstPinnedNote(idx) || noteListModel->isFirstUnpinnedNote(idx))) {
                 y += 25;
             }
         }
         int fourthYOffset = 0;
-        if (model && model->isFirstUnpinnedNote(index)) {
-            fourthYOffset = NoteListConstant::unpinnedHeaderToNoteSpace;
+        if ((noteListModel != nullptr) && noteListModel->isFirstUnpinnedNote(index)) {
+            fourthYOffset = note_list_constants::UNPINNED_HEADER_TO_NOTE_SPACE;
         }
         int fifthYOffset = 0;
-        if (model && model->hasPinnedNote() && !m_view->isPinnedNotesCollapsed()
-            && model->isFirstUnpinnedNote(index)) {
-            fifthYOffset = NoteListConstant::lastPinnedToUnpinnedHeader;
+        if ((noteListModel != nullptr) && noteListModel->hasPinnedNote() && !m_view->isPinnedNotesCollapsed() && noteListModel->isFirstUnpinnedNote(index)) {
+            fifthYOffset = note_list_constants::LAST_PINNED_TO_UNPINNED_HEADER;
         }
         int yOffsets = fourthYOffset + fifthYOffset;
 
@@ -100,22 +94,20 @@ NoteListDelegateEditor::NoteListDelegateEditor(const NoteListDelegate *delegate,
         m_tagListView->setGeometry(10, y - 5, rect().width() - 15, m_tagListView->height());
     } else {
         int y = 70;
-        auto model = dynamic_cast<NoteListModel *>(m_view->model());
-        if (model) {
-            auto m_index = model->getNoteIndex(m_id);
-            if (model->hasPinnedNote()
-                && (model->isFirstPinnedNote(m_index) || model->isFirstUnpinnedNote(m_index))) {
+        auto const *noteListModel = static_cast<NoteListModel *>(m_view->model());
+        if (noteListModel != nullptr) {
+            auto idx = noteListModel->getNoteIndex(m_id);
+            if (noteListModel->hasPinnedNote() && (noteListModel->isFirstPinnedNote(idx) || noteListModel->isFirstUnpinnedNote(idx))) {
                 y += 25;
             }
         }
         int fourthYOffset = 0;
-        if (model && model->isFirstUnpinnedNote(index)) {
-            fourthYOffset = NoteListConstant::unpinnedHeaderToNoteSpace;
+        if ((noteListModel != nullptr) && noteListModel->isFirstUnpinnedNote(index)) {
+            fourthYOffset = note_list_constants::UNPINNED_HEADER_TO_NOTE_SPACE;
         }
         int fifthYOffset = 0;
-        if (model && model->hasPinnedNote() && !m_view->isPinnedNotesCollapsed()
-            && model->isFirstUnpinnedNote(index)) {
-            fifthYOffset = NoteListConstant::lastPinnedToUnpinnedHeader;
+        if ((noteListModel != nullptr) && noteListModel->hasPinnedNote() && !m_view->isPinnedNotesCollapsed() && noteListModel->isFirstUnpinnedNote(index)) {
+            fifthYOffset = note_list_constants::LAST_PINNED_TO_UNPINNED_HEADER;
         }
         int yOffsets = fourthYOffset + fifthYOffset;
 
@@ -123,12 +115,11 @@ NoteListDelegateEditor::NoteListDelegateEditor(const NoteListDelegate *delegate,
         m_tagListView->setGeometry(10, y - 5, rect().width() - 15, m_tagListView->height());
     }
     connect(m_tagListView->verticalScrollBar(), &QScrollBar::valueChanged, this, [this] {
-        auto idx = dynamic_cast<NoteListModel *>(m_view->model())->getNoteIndex(m_id);
-        dynamic_cast<NoteListModel *>(m_view->model())
-                ->setData(idx, getScrollBarPos(), NoteListModel::NoteTagListScrollbarPos);
+        auto idx = static_cast<NoteListModel *>(m_view->model())->getNoteIndex(m_id);
+        static_cast<NoteListModel *>(m_view->model())->setData(idx, getScrollBarPos(), NoteListModel::NoteTagListScrollbarPos);
     });
     QTimer::singleShot(0, this, [this] {
-        auto idx = dynamic_cast<NoteListModel *>(m_view->model())->getNoteIndex(m_id);
+        auto idx = static_cast<NoteListModel *>(m_view->model())->getNoteIndex(m_id);
         setScrollBarPos(idx.data(NoteListModel::NoteTagListScrollbarPos).toInt());
     });
     m_view->setEditorWidget(m_id, this);
@@ -141,8 +132,7 @@ NoteListDelegateEditor::~NoteListDelegateEditor()
     m_view->unsetEditorWidget(m_id, nullptr);
 }
 
-void NoteListDelegateEditor::paintBackground(QPainter *painter, const QStyleOptionViewItem &option,
-                                             const QModelIndex &index) const
+void NoteListDelegateEditor::paintBackground(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
 {
     auto bufferSize = rect().size();
     QPixmap buffer{ bufferSize };
@@ -150,13 +140,11 @@ void NoteListDelegateEditor::paintBackground(QPainter *painter, const QStyleOpti
     QPainter bufferPainter{ &buffer };
     bufferPainter.setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
     QRect bufferRect = buffer.rect();
-    auto model = dynamic_cast<NoteListModel *>(m_view->model());
-    if (model && model->hasPinnedNote()
-        && (model->isFirstPinnedNote(index) || model->isFirstUnpinnedNote(index))) {
+    auto const *noteListModel = static_cast<NoteListModel *>(m_view->model());
+    if (noteListModel->hasPinnedNote() && (noteListModel->isFirstPinnedNote(index) || noteListModel->isFirstUnpinnedNote(index))) {
         int fifthYOffset = 0;
-        if (model && model->hasPinnedNote() && !m_view->isPinnedNotesCollapsed()
-            && model->isFirstUnpinnedNote(index)) {
-            fifthYOffset = NoteListConstant::lastPinnedToUnpinnedHeader;
+        if (!m_view->isPinnedNotesCollapsed() && noteListModel->isFirstUnpinnedNote(index)) {
+            fifthYOffset = note_list_constants::LAST_PINNED_TO_UNPINNED_HEADER;
         }
         bufferRect.setY(bufferRect.y() + 25 + fifthYOffset);
     }
@@ -164,8 +152,8 @@ void NoteListDelegateEditor::paintBackground(QPainter *painter, const QStyleOpti
     if (m_view->selectionModel()->isSelected(index)) {
         if (qApp->applicationState() == Qt::ApplicationActive) {
             if (m_isActive) {
-                bufferPainter.fillRect(bufferRect, QBrush(m_ActiveColor));
-                m_tagListView->setBackground(m_ActiveColor);
+                bufferPainter.fillRect(bufferRect, QBrush(m_activeColor));
+                m_tagListView->setBackground(m_activeColor);
             } else {
                 bufferPainter.fillRect(bufferRect, QBrush(m_notActiveColor));
                 m_tagListView->setBackground(m_notActiveColor);
@@ -186,17 +174,11 @@ void NoteListDelegateEditor::paintBackground(QPainter *painter, const QStyleOpti
             m_tagListView->setBackground(m_hoverColor);
         }
     } else {
-        if (m_view->isPinnedNotesCollapsed() && !isPinned) {
-            bufferPainter.fillRect(bufferRect, QBrush(m_defaultColor));
-            m_tagListView->setBackground(m_defaultColor);
-        } else {
-            bufferPainter.fillRect(bufferRect, QBrush(m_defaultColor));
-            m_tagListView->setBackground(m_defaultColor);
-        }
+        bufferPainter.fillRect(bufferRect, QBrush(m_defaultColor));
+        m_tagListView->setBackground(m_defaultColor);
     }
     if (m_view->isDragging() && !isPinned && !m_view->isDraggingInsidePinned()) {
-        if (model && model->isFirstUnpinnedNote(index)
-            && (index.row() == (model->rowCount() - 1))) {
+        if ((noteListModel != nullptr) && noteListModel->isFirstUnpinnedNote(index) && (index.row() == (noteListModel->rowCount() - 1))) {
             auto rect = bufferRect;
             rect.setHeight(4);
             bufferPainter.fillRect(rect, QBrush("#d6d5d5"));
@@ -209,7 +191,7 @@ void NoteListDelegateEditor::paintBackground(QPainter *painter, const QStyleOpti
             rect = bufferRect;
             rect.setTop(rect.bottom() - 3);
             bufferPainter.fillRect(rect, QBrush("#d6d5d5"));
-        } else if (model && model->isFirstUnpinnedNote(index)) {
+        } else if ((noteListModel != nullptr) && noteListModel->isFirstUnpinnedNote(index)) {
             auto rect = bufferRect;
             rect.setHeight(4);
             bufferPainter.fillRect(rect, QBrush("#d6d5d5"));
@@ -219,7 +201,7 @@ void NoteListDelegateEditor::paintBackground(QPainter *painter, const QStyleOpti
             rect = bufferRect;
             rect.setLeft(rect.right() - 3);
             bufferPainter.fillRect(rect, QBrush("#d6d5d5"));
-        } else if (model && (index.row() == (model->rowCount() - 1))) {
+        } else if ((noteListModel != nullptr) && (index.row() == (noteListModel->rowCount() - 1))) {
             auto rect = bufferRect;
             rect.setTop(rect.bottom() - 3);
             bufferPainter.fillRect(rect, QBrush("#d6d5d5"));
@@ -238,28 +220,24 @@ void NoteListDelegateEditor::paintBackground(QPainter *painter, const QStyleOpti
             bufferPainter.fillRect(rect, QBrush("#d6d5d5"));
         }
     }
-    if (model && m_delegate && m_delegate->shouldPaintSeparator(index, *model)) {
+    if ((noteListModel != nullptr) && (m_delegate != nullptr) && m_delegate->shouldPaintSeparator(index, *noteListModel)) {
         paintSeparator(&bufferPainter, option, index);
     }
 
     auto rowHeight = rect().height();
-    painter->drawPixmap(rect(), buffer,
-                        QRect{ 0, bufferSize.height() - rowHeight, rect().width(), rowHeight });
+    painter->drawPixmap(rect(), buffer, QRect{ 0, bufferSize.height() - rowHeight, rect().width(), rowHeight });
 }
 
-void NoteListDelegateEditor::paintLabels(QPainter *painter, const QStyleOptionViewItem &option,
-                                         const QModelIndex &index) const
+void NoteListDelegateEditor::paintLabels(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
 {
     Q_UNUSED(option);
 
     QString title{ index.data(NoteListModel::NoteFullTitle).toString() };
-    QFont titleFont =
-            m_view->selectionModel()->isSelected(index) ? m_titleSelectedFont : m_titleFont;
+    QFont titleFont = m_view->selectionModel()->isSelected(index) ? m_titleSelectedFont : m_titleFont;
     QFontMetrics fmTitle(titleFont);
     QRect fmRectTitle = fmTitle.boundingRect(title);
 
-    QString date =
-            parseDateTime(index.data(NoteListModel::NoteLastModificationDateTime).toDateTime());
+    QString date = utils::parseDateTime(index.data(NoteListModel::NoteLastModificationDateTime).toDateTime());
     QFontMetrics fmDate(m_dateFont);
     QRect fmRectDate = fmDate.boundingRect(date);
 
@@ -275,23 +253,20 @@ void NoteListDelegateEditor::paintLabels(QPainter *painter, const QStyleOptionVi
     double rowPosX = rect().x();
     double rowPosY = rect().y();
     double rowWidth = rect().width();
-    auto model = dynamic_cast<NoteListModel *>(m_view->model());
+    auto const *noteListModel = static_cast<NoteListModel *>(m_view->model());
     int fifthYOffset = 0;
-    if (model && model->hasPinnedNote() && !m_view->isPinnedNotesCollapsed()
-        && model->isFirstUnpinnedNote(index)) {
-        fifthYOffset = NoteListConstant::lastPinnedToUnpinnedHeader;
+    if (noteListModel->hasPinnedNote() && !m_view->isPinnedNotesCollapsed() && noteListModel->isFirstUnpinnedNote(index)) {
+        fifthYOffset = note_list_constants::LAST_PINNED_TO_UNPINNED_HEADER;
     }
-    if (model && model->hasPinnedNote()) {
-        if (model->isFirstPinnedNote(index)) {
-            QRect headerRect(rowPosX + NoteListConstant::leftOffsetX / 2, rowPosY,
-                             rowWidth - NoteListConstant::leftOffsetX / 2, 25);
+    if (noteListModel->hasPinnedNote()) {
+        if (noteListModel->isFirstPinnedNote(index)) {
+            QRect headerRect(rowPosX + (note_list_constants::LEFT_OFFSET_X / 2), rowPosY, rowWidth - (note_list_constants::LEFT_OFFSET_X / 2), 25);
 #ifdef __APPLE__
             int iconPointSizeOffset = 0;
 #else
             int iconPointSizeOffset = -4;
 #endif
-            painter->setFont(FontLoader::getInstance().loadFont("Font Awesome 6 Free Solid", "",
-                                                                14 + iconPointSizeOffset));
+            painter->setFont(font_loader::loadFont("Font Awesome 6 Free Solid", "", 14 + iconPointSizeOffset));
             painter->setPen(QColor(68, 138, 201));
             if (m_view->isPinnedNotesCollapsed()) {
                 painter->drawText(QRect(headerRect.right() - 25, headerRect.y() + 5, 16, 16),
@@ -304,10 +279,9 @@ void NoteListDelegateEditor::paintLabels(QPainter *painter, const QStyleOptionVi
             painter->setFont(m_headerFont);
             painter->drawText(headerRect, Qt::AlignLeft | Qt::AlignVCenter, "Pinned");
             rowPosY += 25;
-        } else if (model->isFirstUnpinnedNote(index)) {
+        } else if (noteListModel->isFirstUnpinnedNote(index)) {
             rowPosY += fifthYOffset;
-            QRect headerRect(rowPosX + NoteListConstant::leftOffsetX / 2, rowPosY,
-                             rowWidth - NoteListConstant::leftOffsetX / 2, 25);
+            QRect headerRect(rowPosX + (note_list_constants::LEFT_OFFSET_X / 2), rowPosY, rowWidth - (note_list_constants::LEFT_OFFSET_X / 2), 25);
             painter->setPen(m_contentColor);
             painter->setFont(m_headerFont);
             painter->drawText(headerRect, Qt::AlignLeft | Qt::AlignVCenter, "Notes");
@@ -322,33 +296,32 @@ void NoteListDelegateEditor::paintLabels(QPainter *painter, const QStyleOptionVi
     }
     int secondYOffset = 0;
     if (index.row() > 0) {
-        secondYOffset = NoteListConstant::nextNoteOffset;
+        secondYOffset = note_list_constants::NEXT_NOTE_OFFSET;
     }
     int thirdYOffset = 0;
-    if (model && model->isFirstPinnedNote(index)) {
-        thirdYOffset = NoteListConstant::pinnedHeaderToNoteSpace;
+    if ((noteListModel != nullptr) && noteListModel->isFirstPinnedNote(index)) {
+        thirdYOffset = note_list_constants::PINNED_HEADER_TO_NOTE_SPACE;
     }
     int fourthYOffset = 0;
-    if (model && model->isFirstUnpinnedNote(index)) {
-        fourthYOffset = NoteListConstant::unpinnedHeaderToNoteSpace;
+    if ((noteListModel != nullptr) && noteListModel->isFirstUnpinnedNote(index)) {
+        fourthYOffset = note_list_constants::UNPINNED_HEADER_TO_NOTE_SPACE;
     }
 
     int yOffsets = secondYOffset + thirdYOffset + fourthYOffset;
-    double titleRectPosX = rowPosX + NoteListConstant::leftOffsetX;
+    double titleRectPosX = rowPosX + note_list_constants::LEFT_OFFSET_X;
     double titleRectPosY = rowPosY;
-    double titleRectWidth = rowWidth - 2.0 * NoteListConstant::leftOffsetX;
-    double titleRectHeight = fmRectTitle.height() + NoteListConstant::topOffsetY + yOffsets;
+    double titleRectWidth = rowWidth - (2.0 * note_list_constants::LEFT_OFFSET_X);
+    double titleRectHeight = fmRectTitle.height() + note_list_constants::TOP_OFFSET_Y + yOffsets;
 
-    double dateRectPosX = rowPosX + NoteListConstant::leftOffsetX;
-    double dateRectPosY = rowPosY + fmRectTitle.height() + NoteListConstant::topOffsetY + yOffsets;
-    double dateRectWidth = rowWidth - 2.0 * NoteListConstant::leftOffsetX;
-    double dateRectHeight = fmRectDate.height() + NoteListConstant::titleDateSpace;
+    double dateRectPosX = rowPosX + note_list_constants::LEFT_OFFSET_X;
+    double dateRectPosY = rowPosY + fmRectTitle.height() + note_list_constants::TOP_OFFSET_Y + yOffsets;
+    double dateRectWidth = rowWidth - (2.0 * note_list_constants::LEFT_OFFSET_X);
+    double dateRectHeight = fmRectDate.height() + note_list_constants::TITLE_DATE_SPACE;
 
-    double contentRectPosX = rowPosX + NoteListConstant::leftOffsetX;
-    double contentRectPosY = rowPosY + fmRectTitle.height() + fmRectDate.height()
-            + NoteListConstant::topOffsetY + yOffsets;
-    double contentRectWidth = rowWidth - 2.0 * NoteListConstant::leftOffsetX;
-    double contentRectHeight = fmRectContent.height() + NoteListConstant::dateDescSpace;
+    double contentRectPosX = rowPosX + note_list_constants::LEFT_OFFSET_X;
+    double contentRectPosY = rowPosY + fmRectTitle.height() + fmRectDate.height() + note_list_constants::TOP_OFFSET_Y + yOffsets;
+    double contentRectWidth = rowWidth - (2.0 * note_list_constants::LEFT_OFFSET_X);
+    double contentRectHeight = fmRectContent.height() + note_list_constants::DATE_DESC_SPACE;
 
     double folderNameRectPosX = 0;
     double folderNameRectPosY = 0;
@@ -356,14 +329,12 @@ void NoteListDelegateEditor::paintLabels(QPainter *painter, const QStyleOptionVi
     double folderNameRectHeight = 0;
 
     if (m_delegate->isInAllNotes()) {
-        folderNameRectPosX = rowPosX + NoteListConstant::leftOffsetX + 20;
-        folderNameRectPosY = rowPosY + fmRectContent.height() + fmRectTitle.height()
-                + fmRectDate.height() + NoteListConstant::topOffsetY + yOffsets;
-        folderNameRectWidth = rowWidth - 2.0 * NoteListConstant::leftOffsetX;
-        folderNameRectHeight = fmRectParentName.height() + NoteListConstant::descFolderSpace;
+        folderNameRectPosX = rowPosX + note_list_constants::LEFT_OFFSET_X + 20;
+        folderNameRectPosY = rowPosY + fmRectContent.height() + fmRectTitle.height() + fmRectDate.height() + note_list_constants::TOP_OFFSET_Y + yOffsets;
+        folderNameRectWidth = rowWidth - 2.0 * note_list_constants::LEFT_OFFSET_X;
+        folderNameRectHeight = fmRectParentName.height() + note_list_constants::DESC_FOLDER_SPACE;
     }
-    auto drawStr = [painter](double posX, double posY, double width, double height, QColor color,
-                             const QFont &font, const QString &str) {
+    auto drawStr = [painter](double posX, double posY, double width, double height, QColor color, const QFont &font, const QString &str) {
         QRectF rect(posX, posY, width, height);
         painter->setPen(color);
         painter->setFont(font);
@@ -373,51 +344,28 @@ void NoteListDelegateEditor::paintLabels(QPainter *painter, const QStyleOptionVi
     // draw title & date
     title = fmTitle.elidedText(title, Qt::ElideRight, int(titleRectWidth));
     content = fmContent.elidedText(content, Qt::ElideRight, int(titleRectWidth));
-    drawStr(titleRectPosX, titleRectPosY, titleRectWidth, titleRectHeight, m_titleColor, titleFont,
-            title);
-    drawStr(dateRectPosX, dateRectPosY, dateRectWidth, dateRectHeight, m_dateColor, m_dateFont,
-            date);
+    drawStr(titleRectPosX, titleRectPosY, titleRectWidth, titleRectHeight, m_titleColor, titleFont, title);
+    drawStr(dateRectPosX, dateRectPosY, dateRectWidth, dateRectHeight, m_dateColor, m_dateFont, date);
     if (m_delegate->isInAllNotes()) {
-        painter->drawImage(QRect(rowPosX + NoteListConstant::leftOffsetX,
-                                 folderNameRectPosY + NoteListConstant::descFolderSpace, 16, 16),
+        painter->drawImage(QRect(rowPosX + note_list_constants::LEFT_OFFSET_X, folderNameRectPosY + note_list_constants::DESC_FOLDER_SPACE, 16, 16),
                            m_folderIcon);
-        drawStr(folderNameRectPosX, folderNameRectPosY, folderNameRectWidth, folderNameRectHeight,
-                m_contentColor, titleFont, parentName);
+        drawStr(folderNameRectPosX, folderNameRectPosY, folderNameRectWidth, folderNameRectHeight, m_contentColor, titleFont, parentName);
     }
-    drawStr(contentRectPosX, contentRectPosY, contentRectWidth, contentRectHeight, m_contentColor,
-            titleFont, content);
+    drawStr(contentRectPosX, contentRectPosY, contentRectWidth, contentRectHeight, m_contentColor, titleFont, content);
 }
 
-void NoteListDelegateEditor::paintSeparator(QPainter *painter, const QStyleOptionViewItem &option,
-                                            const QModelIndex &index) const
+void NoteListDelegateEditor::paintSeparator(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
 {
     Q_UNUSED(index)
     Q_UNUSED(option);
 
     painter->setPen(QPen(m_separatorColor));
-    const int leftOffsetX = NoteListConstant::leftOffsetX;
+    const int leftOffsetX = note_list_constants::LEFT_OFFSET_X;
     int posX1 = rect().x() + leftOffsetX;
     int posX2 = rect().x() + rect().width() - leftOffsetX - 1;
     int posY = rect().y() + rect().height() - 1;
 
     painter->drawLine(QPoint(posX1, posY), QPoint(posX2, posY));
-}
-
-QString NoteListDelegateEditor::parseDateTime(const QDateTime &dateTime) const
-{
-    QLocale usLocale(QLocale("en_US"));
-
-    auto currDateTime = QDateTime::currentDateTime();
-
-    if (dateTime.date() == currDateTime.date()) {
-        return usLocale.toString(dateTime.time(), "h:mm A");
-    } else if (dateTime.daysTo(currDateTime) == 1) {
-        return "Yesterday";
-    } else if (dateTime.daysTo(currDateTime) >= 2 && dateTime.daysTo(currDateTime) <= 7) {
-        return usLocale.toString(dateTime.date(), "dddd");
-    }
-
-    return dateTime.date().toString("M/d/yy");
 }
 
 bool NoteListDelegateEditor::underMouseC() const
@@ -433,9 +381,9 @@ QPixmap NoteListDelegateEditor::renderToPixmap()
     painter.setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
     QStyleOptionViewItem opt = m_option;
     opt.rect.setWidth(m_option.rect.width() - m_rowRightOffset);
-    auto m_index = dynamic_cast<NoteListModel *>(m_view->model())->getNoteIndex(m_id);
-    paintBackground(&painter, opt, m_index);
-    paintLabels(&painter, m_option, m_index);
+    auto const idx = static_cast<NoteListModel *>(m_view->model())->getNoteIndex(m_id);
+    paintBackground(&painter, opt, idx);
+    paintLabels(&painter, m_option, idx);
     return result;
 }
 
@@ -445,9 +393,9 @@ void NoteListDelegateEditor::paintEvent(QPaintEvent *event)
     painter.setRenderHint(QPainter::Antialiasing);
     QStyleOptionViewItem opt = m_option;
     opt.rect.setWidth(m_option.rect.width() - m_rowRightOffset);
-    auto m_index = dynamic_cast<NoteListModel *>(m_view->model())->getNoteIndex(m_id);
-    paintBackground(&painter, opt, m_index);
-    paintLabels(&painter, m_option, m_index);
+    auto const idx = static_cast<NoteListModel *>(m_view->model())->getNoteIndex(m_id);
+    paintBackground(&painter, opt, idx);
+    paintLabels(&painter, m_option, idx);
     QWidget::paintEvent(event);
 }
 
@@ -456,52 +404,43 @@ void NoteListDelegateEditor::resizeEvent(QResizeEvent *event)
     QWidget::resizeEvent(event);
     if (m_delegate->isInAllNotes()) {
         int y = 90;
-        auto model = dynamic_cast<NoteListModel *>(m_view->model());
-        if (model) {
-            auto m_index = model->getNoteIndex(m_id);
-            if (model->hasPinnedNote()
-                && (model->isFirstPinnedNote(m_index) || model->isFirstUnpinnedNote(m_index))) {
-                y += 25;
-            }
-            int fourthYOffset = 0;
-            if (model && model->isFirstUnpinnedNote(m_index)) {
-                fourthYOffset = NoteListConstant::unpinnedHeaderToNoteSpace;
-            }
-            int fifthYOffset = 0;
-            if (model && model->hasPinnedNote() && !m_view->isPinnedNotesCollapsed()
-                && model->isFirstUnpinnedNote(m_index)) {
-                fifthYOffset = NoteListConstant::lastPinnedToUnpinnedHeader;
-            }
-            int yOffsets = fourthYOffset + fifthYOffset;
-
-            y += yOffsets;
+        auto const *noteListModel = static_cast<NoteListModel *>(m_view->model());
+        auto const idx = noteListModel->getNoteIndex(m_id);
+        if (noteListModel->hasPinnedNote() && (noteListModel->isFirstPinnedNote(idx) || noteListModel->isFirstUnpinnedNote(idx))) {
+            y += 25;
         }
-        m_tagListView->setGeometry(NoteListConstant::leftOffsetX - 5, y + 5, rect().width() - 15,
-                                   m_tagListView->height());
+        int fourthYOffset = 0;
+        if (noteListModel->isFirstUnpinnedNote(idx)) {
+            fourthYOffset = note_list_constants::UNPINNED_HEADER_TO_NOTE_SPACE;
+        }
+        int fifthYOffset = 0;
+        if (noteListModel->hasPinnedNote() && !m_view->isPinnedNotesCollapsed() && noteListModel->isFirstUnpinnedNote(idx)) {
+            fifthYOffset = note_list_constants::LAST_PINNED_TO_UNPINNED_HEADER;
+        }
+        int yOffsets = fourthYOffset + fifthYOffset;
+        y += yOffsets;
+
+        m_tagListView->setGeometry(note_list_constants::LEFT_OFFSET_X - 5, y + 5, rect().width() - 15, m_tagListView->height());
     } else {
         int y = 70;
-        auto model = dynamic_cast<NoteListModel *>(m_view->model());
-        if (model) {
-            auto m_index = model->getNoteIndex(m_id);
-            if (model->hasPinnedNote()
-                && (model->isFirstPinnedNote(m_index) || model->isFirstUnpinnedNote(m_index))) {
-                y += 25;
-            }
-            int fourthYOffset = 0;
-            if (model && model->isFirstUnpinnedNote(m_index)) {
-                fourthYOffset = NoteListConstant::unpinnedHeaderToNoteSpace;
-            }
-            int fifthYOffset = 0;
-            if (model && model->hasPinnedNote() && !m_view->isPinnedNotesCollapsed()
-                && model->isFirstUnpinnedNote(m_index)) {
-                fifthYOffset = NoteListConstant::lastPinnedToUnpinnedHeader;
-            }
-            int yOffsets = fourthYOffset + fifthYOffset;
-
-            y += yOffsets;
+        auto const *noteListModel = static_cast<NoteListModel *>(m_view->model());
+        auto const idx = noteListModel->getNoteIndex(m_id);
+        if (noteListModel->hasPinnedNote() && (noteListModel->isFirstPinnedNote(idx) || noteListModel->isFirstUnpinnedNote(idx))) {
+            y += 25;
         }
-        m_tagListView->setGeometry(NoteListConstant::leftOffsetX - 5, y, rect().width() - 15,
-                                   m_tagListView->height());
+        int fourthYOffset = 0;
+        if (noteListModel->isFirstUnpinnedNote(idx)) {
+            fourthYOffset = note_list_constants::UNPINNED_HEADER_TO_NOTE_SPACE;
+        }
+        int fifthYOffset = 0;
+        if (noteListModel->hasPinnedNote() && !m_view->isPinnedNotesCollapsed() && noteListModel->isFirstUnpinnedNote(idx)) {
+            fifthYOffset = note_list_constants::LAST_PINNED_TO_UNPINNED_HEADER;
+        }
+        int yOffsets = fourthYOffset + fifthYOffset;
+
+        y += yOffsets;
+
+        m_tagListView->setGeometry(note_list_constants::LEFT_OFFSET_X - 5, y, rect().width() - 15, m_tagListView->height());
     }
     recalculateSize();
 }
@@ -532,12 +471,11 @@ void NoteListDelegateEditor::leaveEvent(QEvent *event)
 
 void NoteListDelegateEditor::dropEvent(QDropEvent *event)
 {
-    auto model = dynamic_cast<NoteListModel *>(m_view->model());
-    if (model) {
-        auto index = model->getNoteIndex(m_id);
+    auto *noteListModel = static_cast<NoteListModel *>(m_view->model());
+    if (noteListModel != nullptr) {
+        auto index = noteListModel->getNoteIndex(m_id);
         if (index.isValid()) {
-            model->dropMimeData(event->mimeData(), event->proposedAction(), index.row(), 0,
-                                QModelIndex());
+            noteListModel->dropMimeData(event->mimeData(), event->proposedAction(), index.row(), 0, QModelIndex());
         }
     }
 }
@@ -557,52 +495,48 @@ void NoteListDelegateEditor::recalculateSize()
     }
     result.setHeight(result.height() + m_tagListView->height() + 2);
     result.setWidth(rect().width());
-    auto model = dynamic_cast<NoteListModel *>(m_view->model());
-    if (model) {
-        auto m_index = model->getNoteIndex(m_id);
-        if (model->hasPinnedNote()
-            && (model->isFirstPinnedNote(m_index) || model->isFirstUnpinnedNote(m_index))) {
-            result.setHeight(result.height() + 25);
-        }
-        if (model->hasPinnedNote() && m_view->isPinnedNotesCollapsed()) {
-            auto isPinned = m_index.data(NoteListModel::NoteIsPinned).value<bool>();
-            if (isPinned) {
-                if (model->isFirstPinnedNote(m_index)) {
-                    result.setHeight(25);
-                } else {
-                    result.setHeight(0);
-                }
-            } /*else if (model->hasPinnedNote() && model->isFirstUnpinnedNote(m_index)) {
-                result.setHeight(result.height() + 25);
-            }*/
-        }
-        int secondYOffset = 0;
-        if (m_index.row() > 0) {
-            secondYOffset = NoteListConstant::nextNoteOffset;
-        }
-        int thirdYOffset = 0;
-        if (model && model->isFirstPinnedNote(m_index)) {
-            thirdYOffset = NoteListConstant::pinnedHeaderToNoteSpace;
-        }
-        int fourthYOffset = 0;
-        if (model && model->isFirstUnpinnedNote(m_index)) {
-            fourthYOffset = NoteListConstant::unpinnedHeaderToNoteSpace;
-        }
-
-        int fifthYOffset = 0;
-        if (model && model->hasPinnedNote() && !m_view->isPinnedNotesCollapsed()
-            && model->isFirstUnpinnedNote(m_index)) {
-            fifthYOffset = NoteListConstant::lastPinnedToUnpinnedHeader;
-        }
-
-        int yOffsets = secondYOffset + thirdYOffset + fourthYOffset + fifthYOffset;
-        if (m_delegate->isInAllNotes()) {
-            result.setHeight(result.height() - 2 + NoteListConstant::lastElSepSpace + yOffsets);
-        } else {
-            result.setHeight(result.height() - 10 + NoteListConstant::lastElSepSpace + yOffsets);
-        }
-        emit updateSizeHint(m_id, result, m_index);
+    auto const *noteListModel = static_cast<NoteListModel *>(m_view->model());
+    auto idx = noteListModel->getNoteIndex(m_id);
+    if (noteListModel->hasPinnedNote() && (noteListModel->isFirstPinnedNote(idx) || noteListModel->isFirstUnpinnedNote(idx))) {
+        result.setHeight(result.height() + 25);
     }
+    if (noteListModel->hasPinnedNote() && m_view->isPinnedNotesCollapsed()) {
+        auto isPinned = idx.data(NoteListModel::NoteIsPinned).value<bool>();
+        if (isPinned) {
+            if (noteListModel->isFirstPinnedNote(idx)) {
+                result.setHeight(25);
+            } else {
+                result.setHeight(0);
+            }
+        } /*else if (model->hasPinnedNote() && model->isFirstUnpinnedNote(m_index)) {
+            result.setHeight(result.height() + 25);
+        }*/
+    }
+    int secondYOffset = 0;
+    if (idx.row() > 0) {
+        secondYOffset = note_list_constants::NEXT_NOTE_OFFSET;
+    }
+    int thirdYOffset = 0;
+    if (noteListModel->isFirstPinnedNote(idx)) {
+        thirdYOffset = note_list_constants::PINNED_HEADER_TO_NOTE_SPACE;
+    }
+    int fourthYOffset = 0;
+    if (noteListModel->isFirstUnpinnedNote(idx)) {
+        fourthYOffset = note_list_constants::UNPINNED_HEADER_TO_NOTE_SPACE;
+    }
+
+    int fifthYOffset = 0;
+    if (noteListModel->hasPinnedNote() && !m_view->isPinnedNotesCollapsed() && noteListModel->isFirstUnpinnedNote(idx)) {
+        fifthYOffset = note_list_constants::LAST_PINNED_TO_UNPINNED_HEADER;
+    }
+
+    int yOffsets = secondYOffset + thirdYOffset + fourthYOffset + fifthYOffset;
+    if (m_delegate->isInAllNotes()) {
+        result.setHeight(result.height() - 2 + note_list_constants::LAST_EL_SEP_SPACE + yOffsets);
+    } else {
+        result.setHeight(result.height() - 10 + note_list_constants::LAST_EL_SEP_SPACE + yOffsets);
+    }
+    emit updateSizeHint(m_id, result, idx);
 }
 
 void NoteListDelegateEditor::setScrollBarPos(int pos)
@@ -628,7 +562,7 @@ void NoteListDelegateEditor::setTheme(Theme::Value theme)
         m_titleColor = QColor(26, 26, 26);
         m_dateColor = QColor(26, 26, 26);
         m_defaultColor = QColor(247, 247, 247);
-        m_ActiveColor = QColor(218, 233, 239);
+        m_activeColor = QColor(218, 233, 239);
         m_notActiveColor = QColor(175, 212, 228);
         m_hoverColor = QColor(207, 207, 207);
         m_applicationInactiveColor = QColor(207, 207, 207);
@@ -639,7 +573,7 @@ void NoteListDelegateEditor::setTheme(Theme::Value theme)
         m_titleColor = QColor(212, 212, 212);
         m_dateColor = QColor(212, 212, 212);
         m_defaultColor = QColor(25, 25, 25);
-        m_ActiveColor = QColor(35, 52, 69, 127);
+        m_activeColor = QColor(35, 52, 69, 127);
         m_notActiveColor = QColor(35, 52, 69);
         m_hoverColor = QColor(35, 52, 69);
         m_applicationInactiveColor = QColor(35, 52, 69);
@@ -650,7 +584,7 @@ void NoteListDelegateEditor::setTheme(Theme::Value theme)
         m_titleColor = QColor(26, 26, 26);
         m_dateColor = QColor(26, 26, 26);
         m_defaultColor = QColor(251, 240, 217);
-        m_ActiveColor = QColor(218, 233, 239);
+        m_activeColor = QColor(218, 233, 239);
         m_notActiveColor = QColor(175, 212, 228);
         m_hoverColor = QColor(207, 207, 207);
         m_applicationInactiveColor = QColor(207, 207, 207);

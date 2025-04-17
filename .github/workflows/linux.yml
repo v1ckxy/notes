@@ -22,7 +22,11 @@ jobs:
             build-script: ubuntu_deb_entrypoint.sh
             build-type: release
 
-          - image: ubuntu-23_10
+          - image: ubuntu-24_04
+            build-script: ubuntu_deb_entrypoint.sh
+            build-type: release
+
+          - image: ubuntu-24_10
             build-script: ubuntu_deb_entrypoint.sh
             build-type: release
     steps:
@@ -103,12 +107,12 @@ jobs:
       matrix:
         include:
           # Fedora's release cycle: https://endoflife.date/fedora
-          - image: fedora-38
+          - image: fedora-41
             build-script: rpm_entrypoint.sh
             build-type: release
 
           # openSUSE's release cycle: https://endoflife.date/opensuse
-          - image: opensuse-15_5
+          - image: opensuse-15_6
             build-script: rpm_entrypoint.sh
             build-type: release
     steps:
@@ -266,7 +270,7 @@ jobs:
 
   snap:
     name: snap
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04 # FIXME: See this issue before updating to ubuntu-24.08: https://github.com/actions/runner-images/issues/9932
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
